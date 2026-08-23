@@ -201,3 +201,76 @@ To restore git tracking of those files, use:
 ```sh
 git update-index --no-assume-unchanged configs/htoprc
 ```
+
+## Nix (system-wide dev tools)
+
+Determinate Nix is installed at `/nix`. Dotfiles disables macOS global zsh
+config (`unsetopt GLOBAL_RCS`), so Nix is wired via `zsh/env.d/05_nix.zsh`.
+
+Home Manager flake: `nix/` in this repo.
+
+```sh
+# Apply (also runs from deploy.zsh)
+/nix/var/nix/profiles/default/bin/nix run home-manager -- switch --flake ~/.local/dotfiles/nix#patricklarocque@darwin
+
+# Verify in a fresh login shell
+zsh -lic 'nix --version && gh --version && direnv version'
+```
+
+### Tool ownership (avoid duplicate installs)
+
+| Layer | Owns | Examples |
+|---|---|---|
+| **Nix / Home Manager** | Baseline CLI on PATH | `git`, `gh`, `direnv`, `rg`, `fd`, `bat`, `fzf`, `jq`, `shellcheck`, `terraform` |
+| **mise** | Language runtimes | node, python, rust, uv (`~/.config/mise/config.toml`) |
+| **Homebrew** | macOS / GNU userland | coreutils gnubin, curl, casks; OK if it overlaps Nix, Nix wins on PATH |
+| **Legacy *env wrappers** | Lazy fallbacks | rbenv / pyenv / nodenv in `zsh/rc.d/12_many_env.zsh` — prefer mise for new work |
+
+Do not remove Homebrew packages in the first pass unless you explicitly want a
+Nix-only CLI. Prefer adding new baseline tools to `nix/home.nix` instead of brew.
+
+### Nix trust (optional admin step)
+
+`nix config check` may report `[INFO] You are not trusted by store uri: daemon`
+while `trusted-users = root` only. To silence it and allow user-level store
+operations without root, append to `/etc/nix/nix.custom.conf` (sudo), then
+restart the Nix daemon:
+
+```sh
+echo 'trusted-users = root patricklarocque' | sudo tee -a /etc/nix/nix.custom.conf
+sudo launchctl kickstart -k system/systems.determinate.nix-daemon
+nix config check
+```
+
+The `[FAIL] Found profiles outside of "/nix/var/nix"/profiles` pointing at
+`~/.nix-profile` is expected for standalone Home Manager on macOS and is safe
+to ignore.
+
+Local `/env-setup` skill: `~/.cursor/skills/env-setup/`.
+
+### Known Nix / Home Manager warnings
+
+**`warning: Git tree '…/dotfiles' has uncommitted changes`**
+
+Harmless but noisy. Nix flakes record the Git tree state; dirty working trees
+trigger this on every `home-manager switch`. Commit or stash dotfiles changes
+before applying if you want a clean run (recommended after editing `nix/`).
+
+**`warning: Using 'builtins.derivation' to create a derivation named 'options.json' … without a proper context`**
+
+Comes from Home Manager’s options introspection on current nixpkgs/home-manager
+inputs. It does not block activation and the generation still installs. Track
+upstream home-manager/nixpkgs; upgrading flake inputs occasionally clears it.
+No local action required unless activation starts failing.
+
+**Terraform is unfree (BSL) in nixpkgs**
+
+`flake.nix` uses `allowUnfreePredicate` for the `terraform` package only.
+Open-source alternative: `opentofu` (drop-in CLI) is free in nixpkgs if you
+prefer not to allow unfree packages.
+
+### Cursor agent: Terraform + sandbox
+
+Terraform is installed via Home Manager and allowlisted in `~/.cursor/permissions.json`
+(read-only commands only). `init`, `plan`, `apply`, and `destroy` require
+approval. Sandbox network rules: `~/.cursor/sandbox.json` (registry + HashiCorp).
