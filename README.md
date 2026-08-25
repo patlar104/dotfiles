@@ -170,6 +170,28 @@ noindex rename build        # Rename build directory to build.noindex
 * **Zsh Navigation Hook (`chpwd`):** Automatically adds `.metadata_never_index` to `.git`, `node_modules`, or `.venv` whenever you `cd` into a directory.
 * **Global Git Lifecycle Hooks (`~/.config/git/hooks/`):** `post-checkout`, `post-merge`, and `post-rewrite` hooks automatically run `noindex sweep` on any repository you switch branches in or pull updates to.
 
+#### Troubleshooting & Removal
+
+* **Check Indexing Status:**
+  Verify if a directory is currently ignored by Spotlight:
+  ```sh
+  noindex check /path/to/folder
+  mdls /path/to/folder
+  ```
+* **Re-enable Indexing on a Directory:**
+  Remove `.metadata_never_index` to allow Spotlight to index a directory again:
+  ```sh
+  rm /path/to/folder/.metadata_never_index
+  ```
+* **Remove All Index Blocks in a Workspace:**
+  Remove `.metadata_never_index` recursively across your workspace:
+  ```sh
+  find ~/Projects -name ".metadata_never_index" -delete
+  ```
+* **Disable Automatic Hooks:**
+  * To disable shell package manager & `chpwd` hooks, remove `~/.local/dotfiles/zsh/rc.d/30_noindex.zsh`.
+  * To disable global Git hooks, remove `post-checkout`, `post-merge`, or `post-rewrite` in `~/.config/git/hooks/`.
+
 ### Zsh Configuration
 
 Note that Zsh configuration skips every global configuration file except
