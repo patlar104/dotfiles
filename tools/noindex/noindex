@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# noindex - Prevent macOS Spotlight from indexing development directories
+
+print_usage() {
+    cat << 'EOF'
+Usage: noindex [COMMAND] [PATH]
+
+Prevent macOS Spotlight from indexing heavy development folders.
+
+Commands:
+  (no command) [PATH]   Touch .metadata_never_index in PATH (default: current directory)
+  sweep, -s [DIR]       Recursively scan DIR (default: .) for dev folders (node_modules, .venv,
+                        .git, target, dist, build, .next, etc.) and add .metadata_never_index
+  check, -c [PATH]      Check if Spotlight metadata indexing is active or blocked for PATH
+  rename, -r [PATH]     Rename PATH to PATH.noindex (e.g., build -> build.noindex)
+  help, -h              Show this help message
+
+Examples:
+  noindex                      # Stop indexing current directory
+  noindex node_modules         # Stop indexing node_modules in current directory
+  noindex sweep ~/Projects     # Auto-block indexing across all projects
+  noindex check node_modules   # Check if Spotlight is ignoring node_modules
+  noindex rename build         # Rename build directory to build.noindex
+EOF
+}
+
+TARGET_NAMES=(
+    "node_modules"
+    ".git"
+    ".venv"
+    "venv"
+    ".env"
+    "target"
+    "dist"
+    "build"
+    ".next"
+    ".nuxt"
+    ".svelte-kit"
+    ".astro"
+    ".turbo"
+    ".terragrunt-cache"
+    ".cache"
+    ".terraform"
+    "vendor"
+    ".go"
+    ".cargo"
+    ".gradle"
+)
+
+MODE="add"
+TARGET_DIR=""
+
+if [[ $# -gt 0 ]]; then
+    case "$1" in
+        sweep|-s|--sweep)
+            MODE="sweep"
+            shift
+            TARGET_DIR="${1:-.}"
+            ;;
+        check|-c|--check)
+            MODE="check"
+            shift
+            TARGET_DIR="${1:-.}"
+            ;;
+        rename|-r|--rename)
+            MODE="rename"
+            shift
+            TARGET_DIR="${1:-}"
+            ;;
+        help|-h|--help)
+            print_usage
+            exit 0
+            ;;
+        *)
+            TARGET_DIR="$1"
+            ;;
+    esac
+else
+    TARGET_DIR="."
+fi
+
+case "$MODE" in
+    add)
+        DIR="${TARGET_DIR:-.}"
+        if [[ ! -d "$DIR" ]]; then
+            printf "Error: Directory '%s' does not exist.\n" "$DIR" >&2
+            exit 1
+        fi
+        TOUCH_FILE="$DIR/.metadata_never_index"
+        touch "$TOUCH_FILE"
+        printf "Created Spotlight index block: %s\n" "$TOUCH_FILE"
+        ;;
+    sweep)
+        ROOT_DIR="${TARGET_DIR:-.}"
+        if [[ ! -d "$ROOT_DIR" ]]; then
+            printf "Error: Directory '%s' does not exist.\n" "$ROOT_DIR" >&2
+            exit 1
+        fi
+        printf "Sweeping '%s' for development directories to block Spotlight indexing...\n" "$ROOT_DIR"
+        
+        FIND_EXPR=()
+        for i in "${!TARGET_NAMES[@]}"; do
+            if [[ $i -gt 0 ]]; then
+                FIND_EXPR+=("-o")
+            fi
+            FIND_EXPR+=("-name" "${TARGET_NAMES[$i]}")
+        done
+        
+        count=0
+        while IFS= read -r dir; do
+            if [[ -d "$dir" && ! -f "$dir/.metadata_never_index" ]]; then
+                touch "$dir/.metadata_never_index"
+                printf "  [+] Blocked: %s/.metadata_never_index\n" "$dir"
+                ((count++)) || true
+            fi
+        done < <(find "$ROOT_DIR" -type d \( "${FIND_EXPR[@]}" \) -prune 2>/dev/null)
+        
+        printf "Sweep complete. Added .metadata_never_index to %d director%s.\n" "$count" "$([ "$count" -eq 1 ] && echo "y" || echo "ies")"
+        ;;
+    check)
+        DIR="${TARGET_DIR:-.}"
+        if [[ ! -d "$DIR" ]]; then
+            printf "Error: Directory '%s' does not exist.\n" "$DIR" >&2
+            exit 1
+        fi
+        if [[ -f "$DIR/.metadata_never_index" ]]; then
+            printf "[BLOCKED] %s contains .metadata_never_index (Spotlight indexing disabled).\n" "$DIR"
+        elif [[ "$DIR" == *.noindex ]]; then
+            printf "[BLOCKED] %s has .noindex extension (Spotlight indexing disabled).\n" "$DIR"
+        else
+            printf "[INDEXED] %s is NOT blocked from Spotlight indexing.\n" "$DIR"
+        fi
+        ;;
+    rename)
+        DIR="${TARGET_DIR:-}"
+        if [[ -z "$DIR" || ! -d "$DIR" ]]; then
+            printf "Error: Valid directory required for rename.\n" "$DIR" >&2
+            exit 1
+        fi
+        NEW_NAME="${DIR%.noindex}.noindex"
+        if [[ "$DIR" == "$NEW_NAME" ]]; then
+            printf "Directory '%s' already ends in .noindex\n" "$DIR"
+        else
+            mv "$DIR" "$NEW_NAME"
+            printf "Renamed '%s' -> '%s' (Spotlight indexing disabled).\n" "$DIR" "$NEW_NAME"
+        fi
+        ;;
+esac

@@ -44,6 +44,7 @@ with [zero home presence](#zero-home-presence).
   * [spark](https://github.com/holman/spark) to draw bar charts right in the console
   * [diff-so-fancy](https://github.com/so-fancy/diff-so-fancy) for a much better git diff layout
   * [git-extras](https://github.com/tj/git-extras) additional helpers for Git
+  * [noindex](tools/noindex/noindex) to block macOS Spotlight from indexing heavy development folders (`node_modules`, `.venv`, `.git`, etc.)
 * [Environment wrappers](env-wrappers) for multiple programming languages:
   * [goenv](https://github.com/syndbg/goenv)
   * [jenv](https://github.com/jenv/jenv)
@@ -149,6 +150,26 @@ like this:
 
 You can also add additional configurations in `~/.config/git/local/stuff`.
 
+### Spotlight Indexing Prevention (`noindex`)
+
+The `noindex` utility (`tools/noindex/noindex` linked to `~/.local/bin/noindex`) prevents macOS Spotlight (`mds`) from indexing heavy development folders like `node_modules`, `.venv`, `.git`, `target`, `dist`, `build`, `.next`, and `.cache`.
+
+#### CLI Commands
+
+```sh
+noindex                     # Touch .metadata_never_index in current directory
+noindex node_modules        # Touch .metadata_never_index in node_modules
+noindex sweep ~/Projects    # Recursively scan workspace and add .metadata_never_index to all dev folders
+noindex check node_modules  # Check if Spotlight indexing is blocked
+noindex rename build        # Rename build directory to build.noindex
+```
+
+#### Automatic Shell & Git Integration
+
+* **Package Manager Wrappers:** Executing `npm`, `pnpm`, `yarn`, `bun`, `uv`, or `pip` installation commands automatically marks newly created `node_modules` or `.venv` folders with `.metadata_never_index`.
+* **Zsh Navigation Hook (`chpwd`):** Automatically adds `.metadata_never_index` to `.git`, `node_modules`, or `.venv` whenever you `cd` into a directory.
+* **Global Git Lifecycle Hooks (`~/.config/git/hooks/`):** `post-checkout`, `post-merge`, and `post-rewrite` hooks automatically run `noindex sweep` on any repository you switch branches in or pull updates to.
+
 ### Zsh Configuration
 
 Note that Zsh configuration skips every global configuration file except
@@ -222,9 +243,20 @@ zsh -lic 'nix --version && gh --version && direnv version'
 | Layer | Owns | Examples |
 |---|---|---|
 | **Nix / Home Manager** | Baseline CLI on PATH | `git`, `gh`, `direnv`, `rg`, `fd`, `bat`, `fzf`, `jq`, `shellcheck`, `terraform` |
-| **mise** | Language runtimes | node, python, rust, uv (`~/.config/mise/config.toml`) |
+| **mise** | Language runtimes | node, bun, python, rust, uv (`~/.config/mise/config.toml`) |
 | **Homebrew** | macOS / GNU userland | coreutils gnubin, curl, casks; OK if it overlaps Nix, Nix wins on PATH |
 | **Legacy *env wrappers** | Lazy fallbacks | rbenv / pyenv / nodenv in `zsh/rc.d/12_many_env.zsh` — prefer mise for new work |
+
+`uv` and `bun` are owned by mise, but installers (Hermes, Astral) and
+GUI-spawned / sandboxed shells often miss interactive `mise activate`.
+Dotfiles put mise shims on PATH for agents via `zsh/env.d/05_noninteractive_agent.zsh`
+(+ `~/.cursor/hooks/agent-shell-env.sh` after snap restore) and link
+`~/.local/bin/{uv,bun}` → the mise shims on `deploy.zsh` so sanitized PATHs
+still find them without a second install.
+
+Cursor sandbox network allowlist (`~/.cursor/sandbox.json` and
+`cli-config.json` → `sandbox.networkAllowlist`) includes npm/bun registries
+plus HashiCorp (terraform) and GitHub release hosts.
 
 Do not remove Homebrew packages in the first pass unless you explicitly want a
 Nix-only CLI. Prefer adding new baseline tools to `nix/home.nix` instead of brew.
@@ -273,4 +305,5 @@ prefer not to allow unfree packages.
 
 Terraform is installed via Home Manager and allowlisted in `~/.cursor/permissions.json`
 (read-only commands only). `init`, `plan`, `apply`, and `destroy` require
-approval. Sandbox network rules: `~/.cursor/sandbox.json` (registry + HashiCorp).
+approval. Sandbox network rules: `~/.cursor/sandbox.json` / CLI
+`sandbox.networkAllowlist` (HashiCorp, npm/bun registries, GitHub release hosts).
