@@ -1,0 +1,45 @@
+# cache generated output for eval
+
+emulate -L zsh
+
+setopt extended_glob
+
+local cache_dir=$XDG_CACHE_HOME/zsh/eval
+
+# FNV-1a inline hash
+local c h=2166136261
+for c in ${(s::)"${(qq)@}"}; do (( h = (h ^ #c) * 16777619 & 0xFFFFFFFF )); done
+local cache_file=$cache_dir/${1:t}-${(l:8::0:)$(([##16]h))}.zsh
+
+if [[ -e $cache_file ]] && (( ! ${+commands[$1]} )); then
+    # remove cache file when it's present, but arg isn't executable
+    echo "evalcache ERROR: $1 isn't executable, removing cache file" >&2
+    zf_rm -f $cache_file*
+elif [[ ! -e $cache_file || -n $cache_file(#qN.mh+20) ]]; then
+    # revalidate cache every 20 hours
+    # cache miss
+    if (( ${+commands[$1]} )); then
+        zf_mkdir -p $cache_dir
+        # generate into a pid-unique temp file and rename only on success
+        if command $@ > $cache_file.$$ && [[ -s $cache_file.$$ ]]; then
+            zf_mv -f $cache_file.$$ $cache_file
+            source $cache_file
+            # zrecompile cache file in background
+            {
+                autoload -Uz zrecompile
+                zrecompile -pq $cache_file
+            } &!
+        else
+            zf_rm -f $cache_file.$$
+            echo "evalcache ERROR: $* failed, falling back to previous cache" >&2
+            [[ -r $cache_file ]] && source $cache_file
+        fi
+    else
+        echo "evalcache ERROR: $1 is not available in PATH" >&2
+    fi
+else
+    # cache hit
+    source $cache_file
+fi
+
+# vim: ft=zsh
