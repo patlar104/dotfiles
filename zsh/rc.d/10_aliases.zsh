@@ -2,9 +2,6 @@ export ZSH="$HOME/.oh-my-zsh"
 
 ZSH_THEME=""
 
-autoload -U promptinit; promptinit
-prompt pure
-
 CASE_SENSITIVE="true"
 # ENABLE_CORRECTION="true"
 
