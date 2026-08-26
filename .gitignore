@@ -2,3 +2,5 @@
 zsh/.zsh_history
 zsh/.zsh_sessions/
 zsh/.zcompdump*
+.DS_Store
+.bundle/
