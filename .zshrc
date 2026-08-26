@@ -28,9 +28,9 @@ alias ghost="gs" # replace ghostscript command so git status works properly
 alias lint="npx next lint"
 alias ng="ngrok http --url=caccamedia.ngrok.dev"
 alias c="clear"
-alias lg="lazygit" 
-alias sz="source ~/.zshrc"
-alias csh="~/dotfiles/config.sh"
+alias lg="lazygit"
+alias sz='source "$ZDOTDIR/.zshrc"'
+alias csh="$HOME/.local/dotfiles/config.sh"
 
 # -------
 # pnpm Aliases
@@ -47,7 +47,7 @@ alias psd="pnpm start:dev"
 # bun Aliases
 # ----------------------
 alias b="bun"
-alias bi="bun install"
+alias bni="bun install"
 alias ba="bun add"
 alias bd="bun dev"
 alias bm="bun run migrate"
@@ -98,7 +98,7 @@ alias vls='vercel ls'
 alias vpr='vercel pull --environment=production'
 alias vps='vercel pull --environment=preview'
 alias vpsh='vercel push --environment=preview'
-alias vpsh='vercel push --environment=production'
+alias vpsprod='vercel push --environment=production'
 
 # ----------------------
 # Neovim Aliases
