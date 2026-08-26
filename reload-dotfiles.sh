@@ -13,4 +13,4 @@
 # @raycast.authorURL https://raycast.com/user_fecd0ccf6927f61b7898
 
 # run config script to reload dotfiles
-sh ~/dotfiles/config.sh
+"$HOME/.local/dotfiles/config.sh"

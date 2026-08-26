@@ -29,8 +29,8 @@ alias lint="npx next lint"
 alias ng="ngrok http --url=caccamedia.ngrok.dev"
 alias c="clear"
 alias lg="lazygit"
-alias sz="source "$ZDOTDIR/.zshrc""
-alias csh="~/dotfiles/config.sh"
+alias sz='source "$ZDOTDIR/.zshrc"'
+alias csh="$HOME/.local/dotfiles/config.sh"
 
 # -------
 # pnpm Aliases
@@ -109,10 +109,17 @@ alias nv='nvim'
 # ----------------------
 # Eza Aliases
 # ----------------------
-alias ls='eza --git --group-directories-first --icons'
-alias l='eza --git --group-directories-first --icons'
-alias ll='eza --git --group-directories-first --icons -alF'
-alias la='eza --git --group-directories-first --icons -a'
+if (( $+commands[eza] )); then
+    alias ls='eza --git --group-directories-first --icons'
+    alias l='eza --git --group-directories-first --icons'
+    alias ll='eza --git --group-directories-first --icons -alF'
+    alias la='eza --git --group-directories-first --icons -a'
+else
+    alias ls='/bin/ls'
+    alias l='/bin/ls'
+    alias ll='/bin/ls -alF'
+    alias la='/bin/ls -A'
+fi
 
 # ----------------------
 # Stripe Aliases
