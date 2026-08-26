@@ -1,3 +1,6 @@
+# Provide zf_* file-operation builtins before env.d loads.
+zmodload -m -F zsh/files 'b:zf_*'
+
 # Make rbenv shims available before Zsh redirects ZDOTDIR.
 # This is needed for non-interactive shells as well as interactive shells.
 if [[ -d "$HOME/.rbenv/shims" ]]; then
