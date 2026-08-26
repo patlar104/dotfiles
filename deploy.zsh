@@ -2,6 +2,18 @@
 
 setopt extended_glob err_exit
 
+# Potentially disruptive operations are opt-in. Set a variable to 1 to enable:
+# DOTFILES_UPDATE_SUBMODULES, DOTFILES_APPLY_NIX, DOTFILES_COMPILE_ZSH,
+# DOTFILES_UPDATE_NVIM, DOTFILES_INSTALL_TOOLS, DOTFILES_INSTALL_TIMER,
+# DOTFILES_GENERATE_TAGS.
+DOTFILES_UPDATE_SUBMODULES=${DOTFILES_UPDATE_SUBMODULES:-0}
+DOTFILES_APPLY_NIX=${DOTFILES_APPLY_NIX:-0}
+DOTFILES_COMPILE_ZSH=${DOTFILES_COMPILE_ZSH:-0}
+DOTFILES_UPDATE_NVIM=${DOTFILES_UPDATE_NVIM:-0}
+DOTFILES_INSTALL_TOOLS=${DOTFILES_INSTALL_TOOLS:-0}
+DOTFILES_INSTALL_TIMER=${DOTFILES_INSTALL_TIMER:-0}
+DOTFILES_GENERATE_TAGS=${DOTFILES_GENERATE_TAGS:-0}
+
 zmodload -m -F zsh/files b:zf_\*
 
 SCRIPT_DIR=${0:A:h}
@@ -66,16 +78,27 @@ zf_ln -sfn $SCRIPT_DIR/tools/git-diff-pager $HOME/.local/bin/git-diff-pager
 zf_ln -sfn $SCRIPT_DIR/tools/noindex/noindex $HOME/.local/bin/noindex
 print "  ...done"
 
-# Make sure submodules are installed
-print "Syncing submodules..."
-git submodule sync > /dev/null
-git submodule update --init --recursive > /dev/null
-git clean -ffd
-print "  ...done"
+# Update submodules from their configured upstream branches only when enabled.
+# This never commits the resulting Gitlink changes in the parent repository.
+if [[ $DOTFILES_UPDATE_SUBMODULES == 1 ]]; then
+    print "Checking submodule worktrees before update..."
+    if [[ -n "$(git status --porcelain=v1 --ignore-submodules=none)" ]]; then
+        print -u2 "Refusing submodule update: the parent repository has local changes."
+        print -u2 "Review or commit the changes before running deployment."
+        return 1 2>/dev/null || exit 1
+    fi
+    print "Syncing and updating submodules from remote branches..."
+    git submodule sync --recursive > /dev/null
+    git submodule update --init --remote --merge --recursive
+    print "  ...done"
+else
+    print "Skipping submodule update (set DOTFILES_UPDATE_SUBMODULES=1 to enable)"
+fi
+# Never run git clean automatically: it can permanently delete local files.
 
 
-# Apply Home Manager dev environment when Nix flake is present
-if [[ -x /nix/var/nix/profiles/default/bin/nix ]] && [[ -f $SCRIPT_DIR/nix/flake.nix ]]; then
+# Apply Home Manager only when explicitly requested.
+if [[ $DOTFILES_APPLY_NIX == 1 ]] && [[ -x /nix/var/nix/profiles/default/bin/nix ]] && [[ -f $SCRIPT_DIR/nix/flake.nix ]]; then
     print "Applying Home Manager configuration..."
     /nix/var/nix/profiles/default/bin/nix run home-manager -- switch --flake "$SCRIPT_DIR/nix#patricklarocque@darwin"
     if (( ${+commands[direnv]} )) && [[ -f $SCRIPT_DIR/nix/.envrc ]]; then
@@ -84,12 +107,16 @@ if [[ -x /nix/var/nix/profiles/default/bin/nix ]] && [[ -f $SCRIPT_DIR/nix/flake
     print "  ...done"
 fi
 
-print "Compiling zsh plugins..."
-autoload -Uz zrecompile
-for zsh_plugin_file in $SCRIPT_DIR/zsh/plugins/**/*.zsh{-theme,}(#q.); do
-    zrecompile -pq $zsh_plugin_file
-done
-print "  ...done"
+if [[ $DOTFILES_COMPILE_ZSH == 1 ]]; then
+    print "Compiling zsh plugins..."
+    autoload -Uz zrecompile
+    for zsh_plugin_file in $SCRIPT_DIR/zsh/plugins/**/*.zsh{-theme,}(#q.); do
+        zrecompile -pq $zsh_plugin_file
+    done
+    print "  ...done"
+else
+    print "Skipping Zsh bytecode compilation (set DOTFILES_COMPILE_ZSH=1 to enable)"
+fi
 
 # Install hook to call deploy script after successful pull
 print "Installing git hooks..."
@@ -98,7 +125,7 @@ zf_ln -sfn ../../deploy.zsh .git/hooks/post-merge
 zf_ln -sfn ../../deploy.zsh .git/hooks/post-checkout
 print "  ...done"
 
-if (( ${+commands[make]} )); then
+if [[ $DOTFILES_INSTALL_TOOLS == 1 ]] && (( ${+commands[make]} )); then
     # Make install git-extras
     print "Installing git-extras..."
     pushd tools/git-extras
@@ -158,15 +185,15 @@ if (( ${+commands[perl]} )); then
     print "  ...done"
 fi
 
-if (( ${+commands[vim]} )); then
+if [[ $DOTFILES_GENERATE_TAGS == 1 ]] && (( ${+commands[vim]} )); then
     # Generate vim help tags
     print "Generating vim helptags..."
     command vim --not-a-term -i "NONE" -c "helptags ALL" -c "qall" &> /dev/null
     print "  ...done"
 fi
 
-if (( ${+commands[nvim]} )); then
-    # Generate nvim help tags
+if [[ $DOTFILES_UPDATE_NVIM == 1 ]] && (( ${+commands[nvim]} )); then
+    # Generate nvim help tags and update Neovim-managed dependencies
     print "Generating nvim helptags..."
     command nvim --headless -c "helptags ALL" -c "qall" &> /dev/null
     print "  ...done"
@@ -194,14 +221,16 @@ print "Linking env-wrappers' plugins..."
     zf_ln -sfn $SCRIPT_DIR/env-wrappers/rbenv/default-gems $XDG_DATA_HOME/rbenv/default-gems
 print "  ...done"
 
-# Trigger zsh run with powerlevel10k prompt to download gitstatusd
-print "Downloading gitstatusd for powerlevel10k..."
-zsh -is <<< '' &> /dev/null
-print "  ...done"
+# Trigger the Powerlevel10k gitstatusd download only when Zsh compilation is enabled.
+if [[ $DOTFILES_COMPILE_ZSH == 1 ]]; then
+    print "Downloading gitstatusd for powerlevel10k..."
+    zsh -is <<< '' &> /dev/null
+    print "  ...done"
+fi
 
 # Install task to pull updates every midnight
 print "Installing periodic update task..."
-if (( ${+commands[systemctl]} )); then
+if [[ $DOTFILES_INSTALL_TIMER == 1 ]] && (( ${+commands[systemctl]} )); then
     print "  ...systemd detected, installing timer for periodic updates..."
 
     if (( EUID == 0 )); then
