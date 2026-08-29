@@ -1,0 +1,28 @@
+---
+description: Cursor agent non-interactive zsh — env.d + post-snap hook for mise/nix/direnv
+alwaysApply: true
+---
+
+# Agent shell (this Mac)
+
+Cursor runs each Shell tool as non-interactive `/bin/zsh -c` (`CURSOR_AGENT=1`, `TERM=dumb`, no TTY).
+
+## Load order
+
+1. `~/.zshenv` → `ZDOTDIR` → `env.d/*` (always)
+2. Cursor restores session **snap** (can overwrite PATH / DIRENV_*)
+3. Command runs (stdin `/dev/null`)
+4. `dump_zsh_state`
+
+`rc.d/*` (including `mise activate`, fzf keybinds, aliases) is **not** loaded on a bare agent command unless the snap carried it from the parent shell.
+
+## Hardening already in place
+
+- `~/.local/dotfiles/zsh/env.d/05_noninteractive_agent.zsh` — nix-daemon (all shells); mise shims + best-effort `direnv export` for `$CURSOR_AGENT` / non-interactive
+- `~/.cursor/hooks.json` → `hooks/agent-shell-env.sh` — **preToolUse** on `Shell` re-applies mise shims, nix, and direnv **after** snap restore
+
+## Agent usage
+
+- Prefer `fzf -f` / `--filter`, not interactive TUI
+- Prefer `mise exec -- …` when shim/activate ambiguity matters
+- Do not assume interactive widgets (`fzf-tab`, p10k) exist without a snap

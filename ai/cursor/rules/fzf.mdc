@@ -1,0 +1,20 @@
+---
+description: fzf fuzzy finder on this Mac — paths, defaults, and when to use it
+alwaysApply: true
+---
+
+# fzf (this Mac)
+
+Fuzzy finder is installed and part of the shell/dotfiles setup.
+
+- Binary: `~/.local/bin/fzf` (dotfiles build; shadows Homebrew’s `/opt/homebrew/bin/fzf`)
+- Version: ~0.74.x — also linked via Homebrew formula `fzf`
+- Defaults: `FZF_DEFAULT_OPTS` already set (`--ansi`, half-height, tmux pane, top border, reverse-list)
+- Related: `fzf-tmux`, zsh `fzf-tab`, helpers `fz` / `fgb` / `fgl` / `fgd` / `bag` in dotfiles
+- Good companions already present: `rg`, `bat`, `fd`
+
+## Usage for agents
+
+Prefer `fzf` for **interactive** pick-from-list flows when a TTY/user is present (branch pick, file pick, history). Do **not** reinstall via brew/curl, and do not invent alternate fuzzy UIs when `fzf` fits.
+
+Non-interactive agent shells (`CURSOR_AGENT`, no TTY): use `fzf -f` / `--filter` only; skip live TUI. See also `agent-shell.mdc` for env load order. `FZF_DEFAULT_OPTS` lives in `rc.d` and may be absent unless the Cursor snap restored it.

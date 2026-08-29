@@ -1,0 +1,51 @@
+---
+description: Playwright e2e conventions for locators, timing, fixtures, and assertions
+globs: "**/*.{spec,e2e,test}.{ts,js,tsx,jsx},**/playwright.config.{ts,js,mts,mjs},**/e2e/**/*.{ts,js},**/tests/e2e/**/*.{ts,js}"
+alwaysApply: false
+---
+
+# Playwright tests
+
+## Locators
+
+- Prefer `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`, `getByAltText`, `getByTitle`, then `getByTestId`.
+- Avoid CSS class strings, XPath, and other brittle layout selectors.
+- `page.locator()` is fine for chaining, filters, and test ids — not as the first choice for class names.
+- When a browser MCP is available, inspect the accessibility tree before choosing a locator.
+
+```typescript
+// ❌ BAD
+await page.locator('.btn-primary.mt-4').click();
+
+// ✅ GOOD
+await page.getByRole('button', { name: 'Save' }).click();
+```
+
+## Structure
+
+- One file per feature or user flow; wrap related tests in `describe()`.
+- Keep tests focused; extract helpers if a test grows past ~30 lines.
+- Name files `feature-name.spec.ts`.
+
+## Timing
+
+- Never use `page.waitForTimeout()` or fixed delays.
+- Prefer Playwright auto-waiting and web-first assertions (`expect(...).toBeVisible()`, `toHaveURL`, `waitForURL`, `waitForResponse` for a known request).
+- Do not default to `waitForLoadState('networkidle')` — it is flaky with analytics, websockets, and polling.
+- Use `locator.waitFor({ state: 'visible' })` only when an assertion is not enough.
+
+## Test data
+
+- Credentials and test data via fixtures or env vars; never hardcode secrets.
+- Tests must pass in isolation with no dependence on prior tests.
+- Use `storageState` for authenticated suites. Log in through the UI only in dedicated auth tests.
+
+## Assertions
+
+- Assert the user-visible outcome, not intermediate DOM states.
+- Prefer `toBeVisible`, `toHaveText`, `toHaveURL`, `toHaveValue`, `toBeEnabled`, and similar web-first matchers.
+
+## When editing tests
+
+- Prefer surgical diffs, not full-file rewrites.
+- Put a one-line comment at the top of each spec describing what the file covers.

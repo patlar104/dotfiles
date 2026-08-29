@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "./hooks/agent-shell-env.sh",
+        "matcher": "Shell",
+        "timeout": 10
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "matcher": "Shell|Write|StrReplace|Delete|EditNotebook|Task|AwaitShell",
+        "timeout": 8
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "matcher": "Shell|Write|StrReplace|Delete|EditNotebook|Task|AwaitShell",
+        "timeout": 8
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "timeout": 8
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "timeout": 5
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "timeout": 8
+      }
+    ],
+    "stop": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "timeout": 8,
+        "loop_limit": 2
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "./hooks/failure-watch.sh",
+        "timeout": 5
+      }
+    ]
+  }
+}

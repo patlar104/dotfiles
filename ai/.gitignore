@@ -1,0 +1,5 @@
+# Vendor-provided skills that live inside an installed application bundle.
+# The link target is an absolute, host-specific path, so it is recreated by
+# deploy.zsh only on hosts where the application is actually present.
+cursor/skills/helm-asc
+agents/skills/helm-asc

@@ -1,0 +1,34 @@
+---
+description: Apple native container CLI on this Mac — on-demand start/stop, caps, not Docker
+alwaysApply: true
+---
+
+# Apple `container` (this Mac)
+
+Native OCI Linux containers via Apple’s CLI (`apple/container`), **not** Docker Desktop.
+
+- Binary: `/opt/homebrew/bin/container` (Homebrew formula, ~1.2.2)
+- Data/kernels: `~/Library/Application Support/com.apple.container/`
+- Prefer **Nix/mise** for non-Linux isolation; use `container` only for Linux/OCI
+
+## On-demand (do not auto-start)
+
+Never `brew services start container` — keeps idle RAM free.
+
+```bash
+container system start --enable-kernel-install
+container run --rm --cpus 1 --memory 256M IMAGE CMD
+container system stop
+```
+
+`--enable-kernel-install` avoids the interactive Kata kernel prompt (non-TTY fails with “failed to read user input”).
+
+If no default kernel: `container system kernel set --recommended`
+
+## Resource caps
+
+Defaults are ~1G RAM / 4 CPUs per container. Apple does **not** reject oversubscription. For small jobs always pass `--cpus` and `--memory` (e.g. `1` and `256M`). Stop the builder when idle: `container builder stop`.
+
+## Docker
+
+Quit Docker Desktop while using `container`. Do not run both engines at once. Docker may stay installed for rare API-only tools.

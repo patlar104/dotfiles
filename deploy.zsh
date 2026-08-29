@@ -78,6 +78,51 @@ zf_ln -sfn $SCRIPT_DIR/tools/git-diff-pager $HOME/.local/bin/git-diff-pager
 zf_ln -sfn $SCRIPT_DIR/tools/noindex/noindex $HOME/.local/bin/noindex
 print "  ...done"
 
+# AI agent configuration (Cursor user tier + agents CLI).
+#
+# `ln -sfn dir target` nests the link inside target when target is a real
+# directory, so any pre-existing real path is moved aside first rather than
+# silently producing e.g. ~/.cursor/rules/rules.
+print "Linking AI agent configuration..."
+zf_mkdir -p $HOME/.cursor/hooks $HOME/.agents
+
+ai_link() {
+    local src=$1 dst=$2
+    if [[ -e $dst && ! -L $dst ]]; then
+        local aside=$dst.pre-dotfiles.$(date -u +%Y%m%dT%H%M%SZ)
+        print "  moving existing $dst aside to $aside"
+        zf_mv $dst $aside
+    fi
+    zf_ln -sfn $src $dst
+}
+
+ai_link $SCRIPT_DIR/ai/AGENTS.md $HOME/AGENTS.md
+
+# Watchdog: configuration and executables only. Both scripts locate their own
+# state via $HOME/.cursor/hooks, so that directory stays real and its logs/ and
+# state/ subdirectories remain host-local and outside version control.
+ai_link $SCRIPT_DIR/ai/cursor/hooks.json $HOME/.cursor/hooks.json
+ai_link $SCRIPT_DIR/ai/cursor/hooks/failure-watch.sh $HOME/.cursor/hooks/failure-watch.sh
+ai_link $SCRIPT_DIR/ai/cursor/hooks/failure-watch.py $HOME/.cursor/hooks/failure-watch.py
+ai_link $SCRIPT_DIR/ai/cursor/hooks/agent-shell-env.sh $HOME/.cursor/hooks/agent-shell-env.sh
+
+# Rules and skills produce no runtime output, so whole directories are linked
+# and a new rule or skill syncs without touching this script.
+ai_link $SCRIPT_DIR/ai/cursor/rules $HOME/.cursor/rules
+ai_link $SCRIPT_DIR/ai/cursor/skills $HOME/.cursor/skills
+ai_link $SCRIPT_DIR/ai/agents/skills $HOME/.agents/skills
+
+# Skills shipped inside an installed application bundle are not portable, so
+# they are git-ignored and relinked only where the bundle exists.
+HELM_SKILL=/Applications/Helm.app/Contents/Resources/AgentSkill_AgentSkill.bundle/Contents/Resources/helm-asc
+if [[ -d $HELM_SKILL ]]; then
+    zf_ln -sfn $HELM_SKILL $SCRIPT_DIR/ai/cursor/skills/helm-asc
+    zf_ln -sfn $HELM_SKILL $SCRIPT_DIR/ai/agents/skills/helm-asc
+else
+    print "  Helm skill bundle absent on this host, skipping helm-asc"
+fi
+print "  ...done"
+
 # Update submodules from their configured upstream branches only when enabled.
 # This never commits the resulting Gitlink changes in the parent repository.
 if [[ $DOTFILES_UPDATE_SUBMODULES == 1 ]]; then
