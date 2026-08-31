@@ -59,7 +59,7 @@ zf_ln -sfn $SCRIPT_DIR/nvim/ftplugin $XDG_CONFIG_HOME/nvim/ftplugin
 zf_ln -sfn $SCRIPT_DIR/nvim/plugins $XDG_DATA_HOME/nvim/site/pack/plugins/start
 zf_ln -sfn $SCRIPT_DIR/tmux $XDG_CONFIG_HOME/tmux
 zf_ln -sfn $SCRIPT_DIR/configs/ghostty $XDG_CONFIG_HOME/ghostty/config
-zf_ln -sfn $SCRIPT_DIR/configs/gitconfig $XDG_CONFIG_HOME/git/config
+zf_ln -sfn "$SCRIPT_DIR/.gitconfig" "$HOME/.gitconfig"
 zf_ln -sfn $SCRIPT_DIR/configs/gitattributes $XDG_CONFIG_HOME/git/attributes
 zf_ln -sfn $SCRIPT_DIR/configs/gitignore $XDG_CONFIG_HOME/git/ignore
 zf_ln -sfn $SCRIPT_DIR/configs/tigrc $XDG_CONFIG_HOME/tig/config
@@ -145,7 +145,10 @@ fi
 # Apply Home Manager only when explicitly requested.
 if [[ $DOTFILES_APPLY_NIX == 1 ]] && [[ -x /nix/var/nix/profiles/default/bin/nix ]] && [[ -f $SCRIPT_DIR/nix/flake.nix ]]; then
     print "Applying Home Manager configuration..."
-    /nix/var/nix/profiles/default/bin/nix run home-manager -- switch --flake "$SCRIPT_DIR/nix#patricklarocque@darwin"
+    /bin/mkdir -p "$XDG_STATE_HOME/home-manager"
+    hm_deploy_result="$XDG_STATE_HOME/home-manager/deploy-result"
+    /nix/var/nix/profiles/default/bin/nix --extra-experimental-features 'nix-command flakes' build --no-update-lock-file --no-write-lock-file --out-link "$hm_deploy_result" "path:$SCRIPT_DIR/nix#homeConfigurations.\"patricklarocque@darwin\".activationPackage"
+    "$hm_deploy_result/activate"
     if (( ${+commands[direnv]} )) && [[ -f $SCRIPT_DIR/nix/.envrc ]]; then
         direnv allow $SCRIPT_DIR/nix > /dev/null 2>&1 || true
     fi

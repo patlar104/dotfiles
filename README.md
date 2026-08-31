@@ -36,7 +36,7 @@ with [zero home presence](#zero-home-presence).
 * Other configurations:
   * [ranger](configs/ranger)
   * [quilt](configs/quiltrc)
-  * [Git](configs/gitconfig)
+  * [Git](.gitconfig)
   * [htop](configs/htoprc)
   * [Ghostty](configs/ghostty)
 * Handy [utilities](tools), including:
@@ -139,16 +139,32 @@ built-in.
 
 ### Git Configuration
 
-Update `~/.config/git/local/user` with your email and name. It should look
-like this:
+Deployment links this repository's `.gitconfig` to `~/.gitconfig`. Before
+deploying on another machine, back up its existing Git configuration and
+review the shared file's name, email, and aliases. The old
+`~/.config/git/local/user` and `local/stuff` paths are not included by this
+configuration.
 
-```ini
-[user]
-    email = jdoe@example.com
-    name = John Doe
+GitHub and Gist use an empty host-specific helper entry to reset inherited
+helpers, followed by `!gh auth git-credential`. Keep `gh` available on PATH;
+do not replace the helper with a Homebrew prefix or a Nix store generation.
+Credentials stay in the machine's secure credential store, not this repo.
+
+Check an existing login before authorizing a new one:
+
+```sh
+command -v git
+command -v gh
+gh auth status --hostname github.com
+gh api user --jq .login
+git config --show-origin --get-all credential.https://github.com.helper
 ```
 
-You can also add additional configurations in `~/.config/git/local/stuff`.
+Keep a healthy login. On a new machine, authenticate with
+`gh auth login --hostname github.com --git-protocol https --web` and confirm
+`gh auth status` reports `keyring` storage. Do not copy tokens, `hosts.yml`,
+or private keys between machines. A later `gh auth setup-git` can replace
+the portable helper with an executable path; inspect the helper afterward.
 
 ### Spotlight Indexing Prevention (`noindex`)
 
@@ -247,18 +263,23 @@ git update-index --no-assume-unchanged configs/htoprc
 
 ## Nix (system-wide dev tools)
 
-Determinate Nix is installed at `/nix`. Dotfiles disables macOS global zsh
-config (`unsetopt GLOBAL_RCS`), so Nix is wired via `zsh/env.d/05_nix.zsh`.
+This Mac uses standard Nix 2.35.2, not Determinate. Keep the standard
+org.nixos.nix-daemon and org.nixos.darwin-store services. Nix and the
+user profile are wired through zsh/env.d/05_nix.zsh.
 
-Home Manager flake: `nix/` in this repo.
+Home Manager is defined by nix/flake.nix, nix/home.nix, and nix/flake.lock.
+Build the locked generation before activation; do not use an unpinned
+registry command, reset the lockfile, or change home.stateVersion to upgrade.
 
 ```sh
-# Apply (also runs from deploy.zsh)
-/nix/var/nix/profiles/default/bin/nix run home-manager -- switch --flake ~/.local/dotfiles/nix#patricklarocque@darwin
-
-# Verify in a fresh login shell
-zsh -lic 'nix --version && gh --version && direnv version'
+mkdir -p "$HOME/.local/state/home-manager"
+/nix/var/nix/profiles/default/bin/nix --extra-experimental-features 'nix-command flakes' build --no-update-lock-file --no-write-lock-file --out-link "$HOME/.local/state/home-manager/deploy-result" 'path:/Users/patricklarocque/.local/dotfiles/nix#homeConfigurations."patricklarocque@darwin".activationPackage'
+"$HOME/.local/state/home-manager/deploy-result/activate"
 ```
+
+Run the build and activation separately and stop if the build fails.
+Keep a known-good generation. Inspect missing profile targets before
+changing links; restoring a link cannot restore deleted store contents.
 
 ### Tool ownership (avoid duplicate installs)
 
@@ -283,24 +304,17 @@ plus HashiCorp (terraform) and GitHub release hosts.
 Do not remove Homebrew packages in the first pass unless you explicitly want a
 Nix-only CLI. Prefer adding new baseline tools to `nix/home.nix` instead of brew.
 
-### Nix trust (optional admin step)
+### Nix access and recovery
 
-`nix config check` may report `[INFO] You are not trusted by store uri: daemon`
-while `trusted-users = root` only. To silence it and allow user-level store
-operations without root, append to `/etc/nix/nix.custom.conf` (sudo), then
-restart the Nix daemon:
+Trusted: 0 is expected for an ordinary user and does not block normal
+package builds or Home Manager activation. Do not grant trusted-user
+access merely to silence a diagnostic. The current standard Nix config
+does not include the leftover nix.custom.conf. Do not follow old
+Determinate daemon restart instructions on this installation.
 
-```sh
-echo 'trusted-users = root patricklarocque' | sudo tee -a /etc/nix/nix.custom.conf
-sudo launchctl kickstart -k system/systems.determinate.nix-daemon
-nix config check
-```
-
-The `[FAIL] Found profiles outside of "/nix/var/nix"/profiles` pointing at
-`~/.nix-profile` is expected for standalone Home Manager on macOS and is safe
-to ignore.
-
-Local `/env-setup` skill: `~/.cursor/skills/env-setup/`.
+Preserve the Nix volume, its mount configuration, and its Keychain key.
+Investigate diagnostic failures individually instead of ignoring them
+solely because a profile is outside /nix/var/nix/profiles.
 
 ### Known Nix / Home Manager warnings
 
