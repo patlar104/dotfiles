@@ -6,6 +6,10 @@ CASE_SENSITIVE="true"
 # ENABLE_CORRECTION="true"
 
 plugins=(git docker)
+if [[ -o monitor ]]; then
+    # zsh-syntax-highlighting must stay last; it wraps the widgets the others define.
+    plugins+=(zsh-autosuggestions zsh-syntax-highlighting)
+fi
 
 source $ZSH/oh-my-zsh.sh
 
@@ -19,7 +23,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # Aliases
 # -------
 #alias l="ls" # List files in current directory
-#alias ll="ls -al" # List all files in current directory in long list format
+#alias ll="ls -al" # List all files in long list format
 alias o="open ." # Open the current directory in Finder
 alias ghost="gs" # replace ghostscript command so git status works properly
 alias lint="npx next lint"
